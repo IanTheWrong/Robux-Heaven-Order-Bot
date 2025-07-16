@@ -7,7 +7,8 @@ import requests
 import time
 
 CONFIG_FILE = "config.txt"
-TARGET_CHANNEL_ID = 1395121552567308389
+TARGET_CHANNEL_ID = 1383390323992039496
+REVIEW_CHANNEL_ID = 1383390319785152533
 intents = discord.Intents.default()
 intents.guilds = True
 intents.members = True  # Needed to fetch role members
@@ -52,7 +53,54 @@ def usd_to_sol(usd):
     sol = usd / price
     return sol
 
+def create_order_embed(robux_purchased, rating, payment_method):
+    # Emoji / icons for fields
+    user_emoji = "👤"
+    payment_emoji = "💳"
+    robux_emoji = "🧱"
+    usd_emoji = "💵"
+    rating_emoji = "⭐"
+    ticket_emoji = "📄"
+    hidden_text = "Hidden (Anonymous)"
+    payment_emoji2 = "<:booosters:1383390502107222036>"
+    if(payment_method == "Paypal"):
+        payment_emoji2 = "<:PAYPAL:1383512533515632660>"
+    elif(payment_method == "Giftcards"):
+        payment_emoji2 = "<:Steam:1383390569522266142>"
+    elif(payment_method == "Ethereum (ETH)"):
+        payment_emoji2 = "<:eth:1383512545670987958>"
+    elif(payment_method == "Bitcoin (BTC)"):
+        payment_emoji2 = "<:bitcoin:1388867418289471559>"
+    elif(payment_method == "Litecoin (LTC)"):
+        payment_emoji2 = "<:litecoin:1388867429710696559>"
+    elif(payment_method == "Solana (SOL)"):
+        payment_emoji2 = "<:solana:1388867407472492616>"
+    elif(payment_method == "Cashapp"):
+        payment_emoji2 = "<:CA_CashApp:1383514315046387934>"
 
+    # Create star rating string (e.g., ★★★★★ for 5 stars)
+    max_rating = 5
+    filled_stars = "★" * rating
+    empty_stars = "☆" * (max_rating - rating)
+    rating_stars = f"{filled_stars}{empty_stars} ({rating}/5)"
+
+    embed = discord.Embed(
+        title="✅ New Completed Order",
+        color=0xFFFFFF  # Green color
+    )
+    embed.set_thumbnail(url="attachment://robuxheaven3.gif")
+
+    embed.add_field(name=f"{user_emoji} User", value=f"🔒 {hidden_text}", inline=True)
+    embed.add_field(name=f"{payment_emoji} Payment Method", value=f"{payment_emoji2} {payment_method}", inline=True)
+
+    embed.add_field(name=f"{robux_emoji} Robux Purchased", value=f"{robux_purchased:,} Robux", inline=False)
+    embed.add_field(name=f"{usd_emoji} USD Spent", value=f"${robux_purchased/1000:,.2f}", inline=True)
+    embed.add_field(name=f"{rating_emoji} Rating", value=rating_stars, inline=True)
+    embed.add_field(name=f"{ticket_emoji} Ticket Order ID", value=str(int(time.time())), inline=False)
+
+    embed.set_footer(text="Powered by Robux Heaven • discord.gg/robuxheaven")
+
+    return embed
 # --- Config save/load ---
 class MyDropdown(Select):
     def __init__(self, amt):
@@ -633,11 +681,13 @@ async def ticket(ctx):
     view = PersistentTicketView()
     await ctx.followup.send(embed=embed, view=view, file=file)
 
-@bot.slash_command(description="Test")
-async def test(ctx):
-    webhooks = await ctx.channel.webhooks()
-    for hook in webhooks:
-        print(f"{hook.name} - {hook.id}")
+@bot.slash_command(description="Write a Review",  default_member_permissions=discord.Permissions(administrator=True),dm_permission=False)
+async def review(ctx, robux : int, rating : int, payment_method):
+    file = discord.File("robuxheaven3.gif", filename="robuxheaven3.gif")
+    embed = create_order_embed(robux,rating, payment_method)
+    reviewChannel = bot.get_channel(REVIEW_CHANNEL_ID)
+    await ctx.respond("Submitted", ephemeral = True)
+    await reviewChannel.send(embed = embed, file = file)
 
 @bot.event
 async def on_ready():
