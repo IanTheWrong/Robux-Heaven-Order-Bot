@@ -1,12 +1,13 @@
 import discord
-from discord.ui import Button, View
-from discord.ui import View, Select
+from discord.ui import View, Button, Modal, InputText, Select
 import os
 from discord.ext import commands
 import asyncio
 import requests
+import time
 
 CONFIG_FILE = "config.txt"
+TARGET_CHANNEL_ID = 1395121552567308389
 intents = discord.Intents.default()
 intents.guilds = True
 intents.members = True  # Needed to fetch role members
@@ -103,9 +104,72 @@ class MyDropdown(Select):
                 color=0xFFFFFF
             )
             await interaction.followup.send(embed=embed)
+        elif selected == "Giftcards":
+            embed = discord.Embed(
+                title="**Giftcards Payment Method (5/5)**",
+                description=f"To pay with giftcards, please ensure you purchase a giftcard that we **accept**. Make sure the gift card has the **required value**. After submitting the gift card information, please wait for our staff to verify it.",
+                color=0xFFFFFF
+            )
+            embed.add_field(
+                name="**Accepted Giftcards**",
+                value="<:Rewarble:1383390562773630996>  Rewarble Giftcards (Recommended!), <:Steam:1383390569522266142>  Steam Giftcards or <:applepay:1383512540679770175>  Apple Giftcards. (USA ONLY!)",
+                inline=False
+            )
+            embed.add_field(
+                name="**Price in USD**",
+                value=f"`{self.amt / 1000:.2f}`",
+                inline=False
+            )
+            view = FormView()
+            await interaction.followup.send(embed=embed, view = view)
 
-            
-            
+
+class ApplicationForm(Modal):
+    def __init__(self):
+        super().__init__(title="Giftcard Information")
+
+        self.add_item(InputText(label="Giftcard Type?", placeholder="Example: Steam Giftcard"))
+        self.add_item(InputText(label="How Much $ Is In The Giftcard", placeholder="Example: 30$"))
+        self.add_item(InputText(label="Additional Information", placeholder="It's an EU Steam Giftcard"))
+        self.add_item(InputText(label="Giftcard Code", placeholder="000-000-000"))
+
+    async def callback(self, interaction: discord.Interaction):
+        # Format the result
+        id = int(time.time())
+        embed = discord.Embed(
+            title="New Giftcard",
+            color=0xFFFFFF
+        )
+        for item in self.children:
+            embed.add_field(name=item.label, value=item.value, inline=False)
+        embed.add_field(
+            name = "ID",
+            value = id,
+            inline = False
+        )
+        embed.set_footer(text=f"Submitted by {interaction.user}", icon_url=interaction.user.display_avatar.url)
+        # Send to the configured channel
+        target_channel = bot.get_channel(TARGET_CHANNEL_ID)
+        if target_channel:
+            await target_channel.send(embed=embed)
+            embed = discord.Embed(
+                title="Form Submitted",
+                description=f"Your form was successfully submitted!\n**Form ID:** `{id}`",
+                color=0xFFFFFF
+            )
+
+            await interaction.response.send_message(embed=embed)
+        else:
+            await interaction.response.send_message("Failed to send form. Channel not found.", ephemeral=True)
+
+class FormView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Submit a Giftcard", style=discord.ButtonStyle.secondary)
+    async def open_form(self, button: Button, interaction: discord.Interaction):
+        await interaction.response.send_modal(ApplicationForm())
+
 class CryptoDropdown(Select):
     def __init__(self, amt):
         self.amt = amt
@@ -547,7 +611,7 @@ async def viewconfig(ctx):
 
 # --- Ticket command to send the ticket button ---
 
-@bot.slash_command(description="Show the ticket creation button")
+@bot.slash_command(description="Show the ticket creation button", default_member_permissions=discord.Permissions(administrator=True),dm_permission=False)
 async def ticket(ctx):
     await ctx.defer()
     file = discord.File("robuxheaven3.gif", filename="robuxheaven3.gif")
