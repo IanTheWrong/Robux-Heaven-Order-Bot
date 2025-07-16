@@ -620,7 +620,7 @@ class PersistentCloseTicketView(View):
 
 # --- Slash commands for role config management ---
 
-@bot.slash_command(description="Add a staff role to the ticket config")
+@bot.slash_command(description="Add a staff role to the ticket config",  default_member_permissions=discord.Permissions(administrator=True),dm_permission=False)
 async def addrole(ctx, role: discord.Role):
     roles = load_roles()
     if role.id in roles:
@@ -630,7 +630,7 @@ async def addrole(ctx, role: discord.Role):
     save_roles(roles)
     await ctx.respond(f"Added role `{role.name}` to the ticket config.", ephemeral=True)
 
-@bot.slash_command(description="Remove a staff role from the ticket config")
+@bot.slash_command(description="Remove a staff role from the ticket config", default_member_permissions=discord.Permissions(administrator=True),dm_permission=False)
 async def removerole(ctx, role: discord.Role):
     roles = load_roles()
     if role.id not in roles:
@@ -640,7 +640,7 @@ async def removerole(ctx, role: discord.Role):
     save_roles(roles)
     await ctx.respond(f"Removed role `{role.name}` from the ticket config.", ephemeral=True)
 
-@bot.slash_command(description="View all staff roles in the ticket config")
+@bot.slash_command(description="View all staff roles in the ticket config",  default_member_permissions=discord.Permissions(administrator=True),dm_permission=False)
 async def viewconfig(ctx):
     role_ids = load_roles()
     if not role_ids:
