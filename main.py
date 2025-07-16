@@ -4,6 +4,7 @@ from discord.ui import View, Select
 import os
 from discord.ext import commands
 import asyncio
+import requests
 
 CONFIG_FILE = "config.txt"
 intents = discord.Intents.default()
@@ -12,6 +13,44 @@ intents.members = True  # Needed to fetch role members
 intents.message_content = True  # <- THIS IS CRITICAL
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+def usd_to_btc(usd_amount):
+    url = "https://api.coingecko.com/api/v3/simple/price"
+    params = {
+        'ids': 'bitcoin',
+        'vs_currencies': 'usd'
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    btc_price = data['bitcoin']['usd']  # current BTC price in USD
+    btc_amount = usd_amount / btc_price
+    return btc_amount
+
+def usd_to_eth(usd):
+    url = "https://api.coingecko.com/api/v3/simple/price"
+    params = {'ids': 'ethereum', 'vs_currencies': 'usd'}
+    data = requests.get(url, params=params).json()
+    price = data['ethereum']['usd']
+    eth = usd / price
+    return eth
+
+def usd_to_ltc(usd):
+    url = "https://api.coingecko.com/api/v3/simple/price"
+    params = {'ids': 'litecoin', 'vs_currencies': 'usd'}
+    data = requests.get(url, params=params).json()
+    price = data['litecoin']['usd']
+    ltc = usd / price
+    return ltc
+
+def usd_to_sol(usd):
+    url = "https://api.coingecko.com/api/v3/simple/price"
+    params = {'ids': 'solana', 'vs_currencies': 'usd'}
+    data = requests.get(url, params=params).json()
+    price = data['solana']['usd']
+    sol = usd / price
+    return sol
+
 
 # --- Config save/load ---
 class MyDropdown(Select):
@@ -33,30 +72,37 @@ class MyDropdown(Select):
         self.disabled = True
         new_view = View()
         new_view.add_item(self)
-        if(selected == "Cryptocurrency"):
-          await interaction.channel.purge(limit=2)
-          next_embed = discord.Embed(
-              title="**Please select your preferred crypto (4/5)**",
-              description="""You have selected **Cryptocurrency** as your sending payment, What crypto will you be sending?""",
-              color=0xFFFFFF
-          )
-          f = CryptocurrencyView(self.amt)
-          await interaction.response.edit_message(embed=next_embed, view = f, wait=True)
+        await interaction.response.edit_message(view=new_view)
+        if selected == "Cryptocurrency":
+            await interaction.channel.purge(limit=2)
+            embed = discord.Embed(
+                title="**Crypto Selection (4/5)**",
+                description="You selected **Cryptocurrency**. What crypto will you be sending?",
+                color=0xFFFFFF
+            )
+            await interaction.followup.send(embed=embed, view=CryptocurrencyView(self.amt))
 
-          if(selected == "Paypal"):
-            next_embed = discord.Embed(
+        elif selected == "Paypal":
+            embed = discord.Embed(
                 title="**Paypal Payment Invoice (5/5)**",
-                description=f"""To ensure a smooth transaction process, we kindly request that all PayPal payments be sent through the **"Family and Friends"** option.\n**Payment Email**\nPing any staff available.\n**Payment Link**\nPing any staff available.\n**Amount USD**\n{self.amt/1000}""",
+                description=f"""To ensure a smooth transaction process, we kindly request that all PayPal payments be sent through the **"Friends and Family"** option.\n
+                **Payment Email**\nPing staff.\n
+                **Payment Link**\nPing staff.\n
+                **Amount USD**: ${self.amt / 1000:.2f}""",
                 color=0xFFFFFF
             )
-            await interaction.response.edit_message(embed=next_embed, wait=True)
-          if(selected == "Cashapp"):
-            next_embed = discord.Embed(
+            await interaction.followup.send(embed=embed)
+
+        elif selected == "Cashapp":
+            embed = discord.Embed(
                 title="**Cashapp Payment Invoice (5/5)**",
-                description=f"""To ensure a smooth transaction process, we kindly request that all PayPal payments be sent through the **Cashapp Balance** option.\n**Payment Tag**\nPing any staff available.\n**Payment Link**\nPing any staff available.\n**Amount USD**\n{self.amt/1000}""",
+                description=f"""Please send payment using **CashApp Balance**.\n
+                **Payment Tag**\nPing staff.\n
+                **Payment Link**\nPing staff.\n
+                **Amount USD**: ${self.amt / 1000:.2f}""",
                 color=0xFFFFFF
             )
-            await interaction.response.edit_message(embed=next_embed, wait=True)
+            await interaction.followup.send(embed=embed)
 
             
             
@@ -78,7 +124,139 @@ class CryptoDropdown(Select):
         new_view = View()
         new_view.add_item(self)
         if(selected == "Bitcoin"):
-            print("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
+            embed = discord.Embed(
+            title="**Bitcoin Payment Invoice (5/5)**",
+            description=(
+                f"This transaction is approximately **${self.amt / 1000:.2f}**, however to ensure we\n"
+                "can validate your payment successfully please copy and paste the\n"
+                f"value of **`{usd_to_btc(self.amt / 1000):.9f}`** and send it to our address."
+            ),
+            color=0xFFFFFF
+            )
+
+            embed.add_field(
+                name="**Payment Address**",
+                value="`bc1q63qum22rj4th2z66hdzj8qrmgghj6y55rsnj3x`",
+                inline=False
+            )
+
+            embed.add_field(
+                name="**Amount Bitcoin**",
+                value=f"`{usd_to_btc(self.amt / 1000):.9f}`",
+                inline=True
+            )
+
+            embed.add_field(
+                name="**Amount USD**",
+                value=f"`{self.amt / 1000:.2f}`",
+                inline=True
+            )
+
+            file = discord.File("btc.png", filename="btc.png")
+            embed.set_thumbnail(url="attachment://btc.png")
+
+            await interaction.followup.send(embed=embed, file=file)
+
+        elif(selected == "Litecoin"):
+            embed = discord.Embed(
+            title="**Litecoin Payment Invoice (5/5)**",
+            description=(
+                f"This transaction is approximately **${self.amt / 1000:.2f}**, however to ensure we\n"
+                "can validate your payment successfully please copy and paste the\n"
+                f"value of **`{usd_to_ltc(self.amt / 1000):.8f}`** and send it to our address."
+            ),
+            color=0xFFFFFF
+        )
+
+            embed.add_field(
+                name="**Payment Address**",
+                value="`LhLjjHNfgwHe7JxwQqGAtupmvpK2AdFMk2`",
+                inline=False
+            )
+
+            embed.add_field(
+                name="**Amount LTC**",
+                value=f"`{usd_to_ltc(self.amt / 1000):.8f}`",
+                inline=True
+            )
+
+            embed.add_field(
+                name="**Amount USD**",
+                value=f"`{self.amt / 1000:.2f}`",
+                inline=True
+            )
+
+            file = discord.File("ltc.png", filename="ltc.png")
+            embed.set_thumbnail(url="attachment://ltc.png")
+
+            await interaction.followup.send(embed=embed, file=file)
+        elif(selected == "Ethereum"):
+            embed = discord.Embed(
+            title="**Ethereum Payment Invoice (5/5)**",
+            description=(
+                f"This transaction is approximately **${self.amt / 1000:.2f}**, however to ensure we\n"
+                "can validate your payment successfully please copy and paste the\n"
+                f"value of **`{usd_to_eth(self.amt / 1000):.8f}`** and send it to our address."
+            ),
+            color=0xFFFFFF
+        )
+
+            embed.add_field(
+                name="**Payment Address**",
+                value="`0x5D49Fe71a87E7CD93E8d2e869109177f1e8d7E58`",
+                inline=False
+            )
+
+            embed.add_field(
+                name="**Amount ETH**",
+                value=f"`{usd_to_eth(self.amt / 1000):.8f}`",
+                inline=True
+            )
+
+            embed.add_field(
+                name="**Amount USD**",
+                value=f"`{self.amt / 1000:.2f}`",
+                inline=True
+            )
+
+            file = discord.File("eth.png", filename="eth.png")
+            embed.set_thumbnail(url="attachment://eth.png")
+
+            await interaction.followup.send(embed=embed, file=file)
+        elif(selected == "Solana"):
+            embed = discord.Embed(
+            title="**Solana Payment Invoice (5/5)**",
+            description=(
+                f"This transaction is approximately **${self.amt / 1000:.2f}**, however to ensure we\n"
+                "can validate your payment successfully please copy and paste the\n"
+                f"value of **`{usd_to_sol(self.amt / 1000):.6f}`** and send it to our address."
+            ),
+            color=0xFFFFFF
+        )
+
+            embed.add_field(
+                name="**Payment Address**",
+                value="`28Ch14NTPTwNKU5SFQnFGBGhUGkkTHiBteuiLczbmMWc`",
+                inline=False
+            )
+
+            embed.add_field(
+                name="**Amount SOL**",
+                value=f"`{usd_to_sol(self.amt / 1000):.6f}`",
+                inline=True
+            )
+
+            embed.add_field(
+                name="**Amount USD**",
+                value=f"`{self.amt / 1000:.2f}`",
+                inline=True
+            )
+
+            file = discord.File("sol.png", filename="sol.png")
+            embed.set_thumbnail(url="attachment://sol.png")
+
+            await interaction.followup.send(embed=embed, file=file)
+
 
 # Step 2: Define the View that holds the dropdown
 class DropdownView(View):
@@ -390,6 +568,12 @@ async def ticket(ctx):
     embed.set_image(url="attachment://robuxheaven3.gif")
     view = PersistentTicketView()
     await ctx.followup.send(embed=embed, view=view, file=file)
+
+@bot.slash_command(description="Test")
+async def test(ctx):
+    webhooks = await ctx.channel.webhooks()
+    for hook in webhooks:
+        print(f"{hook.name} - {hook.id}")
 
 @bot.event
 async def on_ready():
