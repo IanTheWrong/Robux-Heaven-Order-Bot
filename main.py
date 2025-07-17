@@ -5,6 +5,7 @@ from discord.ext import commands
 import asyncio
 import requests
 import time
+from dotenv import load_dotenv
 
 CONFIG_FILE = "config.txt"
 TARGET_CHANNEL_ID = 1383390323992039496
@@ -13,6 +14,8 @@ intents = discord.Intents.default()
 intents.guilds = True
 intents.members = True  # Needed to fetch role members
 intents.message_content = True  # <- THIS IS CRITICAL
+load_dotenv()
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -557,16 +560,19 @@ class TicketButton(Button):
         # Load staff role IDs
         role_ids = load_roles()
 
-        # Check for existing ticket thread by name
-        active_threads_list = await interaction.guild.active_threads()
-        active_threads = [t for t in active_threads_list if t.parent_id == interaction.channel.id]
+        # Get active threads under the current channel only
+        active_threads = [
+        t for t in interaction.channel.threads
+        if not t.archived and t.owner_id == interaction.user.id
+        ]
+
         if active_threads:
-            await interaction.response.send_message("❗ You already have an open ticket here.", ephemeral=True)
+            await interaction.response.send_message("❗ You already have an open ticket in this channel.", ephemeral=True)
             return
 
         # Create a private thread
         thread = await parent_channel.create_thread(
-            name=f"ticket-{user.name}".lower(),
+            name=f"automatic-order-{user.name}".lower(),
             type=discord.ChannelType.private_thread,
             invitable=True,
             auto_archive_duration=10080  # 24 hours, change as needed
@@ -585,7 +591,7 @@ class TicketButton(Button):
         # Send welcome message with close button
         view = View(timeout=None)
         view.add_item(CloseTicketButton())
-        await thread.send(f"{user.mention}, thank you for opening a ticket", view=view)
+        await thread.send(f"<@{277277385773023232}>{user.mention}, thank you for opening a ticket", view=view)
         embed = discord.Embed(
             title="**Would you like to start buying robux? (1/5)**",
             description="""Please click "Yes" if you would like to start purchasing your Robux.""",
@@ -696,4 +702,4 @@ async def on_ready():
     bot.add_view(PersistentCloseTicketView())
 
 
-bot.run('MTM5MzQwMTUxNjYzNDkzNTMxNw.GSm3iX.Q5YE7SDp1_EJoyfyIVhv3TtZ9rxZE_lJhNHLPw')
+bot.run(TOKEN)
